@@ -35,7 +35,7 @@ createSymbols :: GlobalSymTable -> CTranslUnit -> IO (Maybe (GlobalSymTable,
 createSymbols gtable ctu = do
                               let ((sl,cl),ctl) = createSymbolTable gtable ctu
                               if containError cl
-                                then do trace (unlines $ Prelude.map show cl) $ return Nothing
+                                then trace (unlines $ Prelude.map show cl) $ return Nothing
                                 else do -- putStrLn (showCTU gtable sl ctl)
                                         let code = showCodes (topLevelCodeGeneration cl sl gtable ctl)
                                         putStrLn code

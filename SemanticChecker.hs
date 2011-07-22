@@ -5,7 +5,6 @@ import Syntax.AST
 import Symbol
 import CompileError
 import Stack as S
-import Debug.Trace
 import Data.List
 import Data.Map as M
 import Data.Maybe
@@ -167,7 +166,7 @@ instance CreatingSymTable Stmt where
     let (css',expr') = collectSymbol gtable css expr
     in (css', Expression expr')
 
-  collectSymbol gtable css (If expr stmt1 stmt2) = -- trace ("stack in if : " ++ (show $ stack css)) $
+  collectSymbol gtable css (If expr stmt1 stmt2) =
     let (css', expr') = collectSymbol gtable css expr
     in let (css'', stmt1') = collectSymbol gtable (modifyLevel css' (lev css + 1)) stmt1
        in let (css''', stmt2') = collectSymbol gtable (modifyLevel css'' (lev css + 1)) stmt2
@@ -179,7 +178,7 @@ instance CreatingSymTable Stmt where
        in (css'', While expr' stmt')
 
   collectSymbol gtable css (Compound sl) =
-    let (css',sl') = foldl' f (css,[]) sl -- (Compound [Stmt])
+    let (css',sl') = foldl' f (css,[]) sl
     in (css',Compound sl')
       where f (state,l) stmt =
               let (state',stmt') = collectSymbol gtable state stmt
@@ -211,7 +210,7 @@ instance CreatingSymTable Expr where
       (-1,-1) -> case M.lookup s gtable of
                    Nothing  -> (addLog css $ Err $ UndeclVar s,e)
                    Just sym -> (css,e)
-      (l,k)   -> trace "found" $ (css,Ident (STableKey k))
+      (l,k)   -> (css,Ident (STableKey k))
 
   collectSymbol gtable css f@(FunCall (Identifier s) p) =
     case M.lookup s gtable of

@@ -37,7 +37,7 @@ class CodeGenerator a where
 instance CodeGenerator FuncDecl where
   codeGeneration state fdecl@(FuncDecl _ (Identifier s) _ body) =
     let (codes,state') = codeGeneration (modifyFuncName s state) body
-    in ([Comment ("function " ++ s)] ++ generateFuncCode fdecl state' codes,state')
+    in (Comment ("function " ++ s) : generateFuncCode fdecl state' codes,state')
 
 generateFuncCode :: FuncDecl -> CompilationState -> [Code] -> [Code]
 generateFuncCode (FuncDecl _ (Identifier s) _ body) state codes =
@@ -146,7 +146,8 @@ instance CodeGenerator Expr where
 
   codeGeneration state (FunCall (Identifier s) elist) = let (codes,state') = f (reverse elist) state
                                                         in (codes ++ [COp $ Op1 "call" (Ex s)]
-                                                            ++ [COp $ Op2 "add" (Reg Esp) (CodeGen.AsmCode.Const ((4::Integer) * (toInteger $ length elist)))],state')
+                                                            ++ [COp $ Op2 "add" (Reg Esp) 
+                                                                (CodeGen.AsmCode.Const (4 * toInteger (length elist)))],state')
                                                           where f [] st = ([],st)
                                                                 f (expr:xs) st = let (ec,st') = codeGeneration st expr
                                                                                  in let (ecc,st'') = f xs st'
