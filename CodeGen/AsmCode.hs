@@ -14,9 +14,6 @@ data Code = COp Op
           | Comment String
           deriving (Eq)
 
-showCodes :: [Code] -> String
-showCodes = concatMap show
-
 emitOp0 :: String -> Code
 emitOp0 name = COp $ Op0 name
 
