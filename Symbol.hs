@@ -27,9 +27,8 @@ data FuncObj = FuncObj {
   fname :: String,
   params :: [String],
   paramType :: [SType],
-  returnType :: SType,
-  localVarSize :: Integer }
-              deriving (Eq, Show)
+  returnType :: SType }
+             deriving (Eq, Show)
 
 data Symbol = SFunc FuncObj
             | SVar VarObj

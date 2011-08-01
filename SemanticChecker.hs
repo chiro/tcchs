@@ -33,8 +33,7 @@ makeFuncSym (FuncDecl tp (Identifier name) (ParamDecl ps) _) =
                 SFunc FuncObj { fname = name,
                                  params = snd $ mp ps,
                                  paramType = fst $ mp ps,
-                                 returnType = convT tp, 
-                                 localVarSize = -1 }
+                                 returnType = convT tp }
                   where mp [] = ([],[])
                         mp ((t,Identifier nm):xs) = (convT t : fst (mp xs),
                                                      nm : snd (mp xs))
@@ -251,20 +250,3 @@ collectSymbolAux gtable css f e1 e2 =
   let (css',e1') = collectSymbol gtable css e1
   in let (css'', e2') = collectSymbol gtable css' e2
      in (css'', f e1' e2')
-
-
--- calculate total size of variable in each function
-calcVarSize :: GlobalSymTable -> CTranslUnit -> [(String,SymbolTable)] -> GlobalSymTable
-calcVarSize gtable (CTU plist) slist = foldl f gtable plist
-  where f gt e@(ExDecl _) = gt
-        f gt f@(Func (FuncDecl t (Identifier i) _ _)) =
-                   let (Just (SFunc sym)) = M.lookup i gt
-                   in M.insert i (SFunc FuncObj { fname = fname sym,
-                                                  params = params sym,
-                                                  paramType = paramType sym,
-                                                  returnType = returnType sym,
-                                                  localVarSize = M.fold aux 0 (snd . head $ Data.List.filter
-                                                                               (\(name,table) -> name == fname sym) slist) })
-                      gtable
-                        where aux sym osize = osize + sizeOf sym
-

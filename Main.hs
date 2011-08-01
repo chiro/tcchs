@@ -6,10 +6,10 @@ import System
 import Debug.Trace
 import Syntax.AST (CTranslUnit)
 import Symbol
-import Parser
-import SemanticChecker
+import Parser (translUnit)
+import SemanticChecker (createGlobalSTable, createSymbolTable)
 import CompileError
-import CodeGen.CodeGenerator
+import CodeGen.CodeGenerator (topLevelCodeGeneration)
 import Data.Map as M
 
 main :: IO ()
