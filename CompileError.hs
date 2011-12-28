@@ -1,6 +1,13 @@
 module CompileError where
 
+import Text.Parsec.Error
 import Symbol
+
+data CompileError = PError ParseError
+                  | SError [CompileLog]
+instance Show CompileError where
+  show (PError pe) = "Parse Error: " ++ show pe
+  show (SError cl) = show cl
 
 data CompileLog = Err SemanticError
                 | Warn Warning
