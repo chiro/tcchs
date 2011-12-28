@@ -1,4 +1,4 @@
 all :
 	ghc -o tcc --make Main
 clean :
-	rm  *.o *.hi */*.o */*.hi
+	rm  tcc *.o *.hi */*.o */*.hi
