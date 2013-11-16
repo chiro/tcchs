@@ -1,0 +1,15 @@
+name: tcchs
+version: 0.1
+author: Yuichiro Hanada
+synopsis: Toy compiler for Tiny C.
+cabal-version: >= 1.6
+build-type: Simple
+
+executable tcchs
+    main-is:    Main.hs
+    build-depends:  base    >= 4 && < 5
+                  , parsec
+                  , containers
+                  , mtl
+
+    ghc-options:  -Wall
