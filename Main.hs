@@ -1,11 +1,8 @@
 module Main where
 
-import Data.Map as M
 import Debug.Trace
 import qualified Text.Parsec.Prim as TPP
-import Text.Parsec.Error (ParseError)
 import System.Environment (getArgs)
-
 
 import Syntax.AST (CTranslUnit)
 import Symbol
@@ -39,13 +36,14 @@ parse s = case TPP.parse translUnit "" s of
 
 semanticCheck :: CTranslUnit ->
                  Either CompileError ([CompileLog],GlobalSymTable,[(String,SymbolTable)],CTranslUnit)
-semanticCheck ctu = let (gtable,log) = createGlobalSTable ctu in
-  case log of
+semanticCheck ctu =
+  let (gtable, compileLog) = createGlobalSTable ctu in
+  case compileLog of
     []  -> let ((sl,cl),ctl) = createSymbolTable gtable ctu in
       if containError cl
       then Left $ SError cl
       else Right (cl,gtable,sl,ctl)
-    _   -> Left $ SError log
+    _   -> Left $ SError compileLog
 
 containError :: [CompileLog] -> Bool
 containError [] = False

@@ -73,6 +73,6 @@ toStr i
   | otherwise = show i
 
 takeName :: SymbolTable -> Identifier -> String
-takeName stable (Identifier s) = s
+takeName _ (Identifier s) = s
 takeName stable (STableKey k)  = let (SVar sym) = fromJust (M.lookup k stable)
                                  in vname sym

@@ -1,7 +1,6 @@
 module Symbol where
 
 import Syntax.Types
-import Data.Maybe
 import Data.Map as M
 
 data SType = SVoid
@@ -49,8 +48,7 @@ sizeOfType _ = -1
 type GlobalSymTable = M.Map String Symbol
 
 appendSymbol :: Symbol -> SymbolTable -> SymbolTable
-appendSymbol sym table = let size = M.size table
-                         in M.insert (toInteger size) sym table
+appendSymbol sym table = M.insert (toInteger $ M.size table) sym table
 
 convT :: Type -> SType
 convT Int = SInt

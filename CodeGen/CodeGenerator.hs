@@ -5,10 +5,8 @@ import Data.Maybe
 import Syntax.AST
 import Symbol
 import CompileError
-import SemanticChecker
 import CodeGen.AsmCode
 import CodeGen.CompilationState
-import Debug.Trace
 
 topLevelCodeGeneration :: [CompileLog]
                           -> [(String,SymbolTable)]
@@ -16,25 +14,29 @@ topLevelCodeGeneration :: [CompileLog]
                           -> CTranslUnit
                           -> [Code]
 topLevelCodeGeneration cl slist gtable (CTU plist) =
-  makeExternalFuncCode cl ++ snd (foldl f (emptyState,[]) plist)
-  where f (state,codes) p = let (nc,state') = codeGenerationP state slist gtable p
-                            in (modifyLabel (countLabel state) emptyState, codes ++ nc)
+  makeExternalFuncCode cl ++ snd (foldl f (emptyState, []) plist)
+  where f (state,codes) p =
+          let (nc, _) = codeGenerationP state slist gtable p
+          in (modifyLabel (countLabel state) emptyState, codes ++ nc)
 
 makeExternalFuncCode :: [CompileLog] -> [Code]
 makeExternalFuncCode = foldl f []
   where f codes (Warn (CallUndefinedFunc s)) = codes ++ [COp (Op1 "EXTERN" (Ex s))]
         f codes _                            = codes
 
-codeGenerationP :: CompilationState -> [(String,SymbolTable)] -> GlobalSymTable -> Program -> ([Code],CompilationState)
+codeGenerationP :: CompilationState
+                   -> [(String,SymbolTable)]
+                   -> GlobalSymTable
+                   -> Program
+                   -> ([Code],CompilationState)
 codeGenerationP state sl gtable (ExDecl decl) = (Prelude.map f (ci decl),state)
     where f s = let sym = fromJust $ M.lookup s gtable
                 in COp (Op0 ("COMMON " ++ s ++ " " ++ show (sizeOf sym)))
           ci (Decl t ids) = Prelude.map (takeName (table state)) ids
-codeGenerationP state sl gtable (Func fdecl@(FuncDecl _ (Identifier s) _ body)) = codeGeneration (modifyTable (lookupS s sl) state) fdecl
-                             where lookupS s [] = error "no"
-                                   lookupS s ((str,table):xs) = if s == str
-                                                                then table
-                                                                else lookupS s xs
+codeGenerationP state sl gtable (Func fdecl@(FuncDecl _ (Identifier s) _ body)) =
+  codeGeneration (modifyTable (lookupS s sl) state) fdecl
+  where lookupS s [] = error "no"
+        lookupS s ((str,table):xs) = if s == str then table else lookupS s xs
 
 class CodeGenerator a where
   codeGeneration :: CompilationState -> a -> ([Code],CompilationState)
@@ -45,23 +47,24 @@ instance CodeGenerator FuncDecl where
     in (Comment ("function " ++ s) : generateFuncCode fdecl state' codes,state')
 
 generateFuncCode :: FuncDecl -> CompilationState -> [Code] -> [Code]
-generateFuncCode (FuncDecl _ (Identifier s) _ body) state codes =
-  let (codes,state') = codeGeneration state body
+generateFuncCode (FuncDecl _ (Identifier s) _ body) state _ =
+  let (codes', state') = codeGeneration state body
   in [COp $ Op1 "GLOBAL" (Ex s),
       OnlyLabel s,
       COp $ Op1 "push" (Reg Ebp),
       COp $ Op2 "mov" (Reg Ebp) (Reg Esp),
       COp $ Op2 "sub" (Reg Esp) (CodeGen.AsmCode.Const (maxAlloc state'))]
-     ++ codes
+     ++ codes'
      ++ [OnlyLabel (s ++ "ret"),
          COp $ Op2 "mov" (Reg Esp) (Reg Ebp),
          COp $ Op1 "pop" (Reg Ebp),
          COp $ Op0 "ret", EmptyCode]
 
 instance CodeGenerator FuncBody where
-  codeGeneration state (Body sl) = foldl f ([],state) sl
-    where f (codes,state) s = let (nc,state') = codeGeneration state s
-                              in (codes++nc,state')
+  codeGeneration state (Body sl) = foldl f ([], state) sl
+    where f (codes, state') s =
+            let (nc,state'') = codeGeneration state' s
+            in (codes++nc, state'')
 
 instance CodeGenerator Stmt where
   codeGeneration state EmptyStmt = ([],state)
@@ -70,13 +73,15 @@ instance CodeGenerator Stmt where
   codeGeneration state (Return (Just expr)) =
     let (codes,state') = codeGeneration state expr
     in (codes++[COp $ Op1 "jmp" (Label (functionName state ++ "ret"))],state')
-  codeGeneration state (Declaration decl@(Decl _ il)) = ([],modifyLoc state (negate (minL il)))
+  codeGeneration state (Declaration (Decl _ il)) = ([],modifyLoc state (negate (minL il)))
     where minL = foldl f 0
           f i (STableKey k) = let (SVar sym) = fromJust $ M.lookup k (table state)
                               in min i (vadr sym)
+          f i _ = i
   codeGeneration state (Compound slist) = foldl f ([],state) slist
-    where f (codes,state) stmt = let (code,state') = codeGeneration state stmt
-                                 in (codes++code,state')
+    where f (codes, state') stmt =
+            let (code, state'') = codeGeneration state' stmt
+            in (codes++code,state'')
 
   codeGeneration state (If expr s1 s2) =
     let (c,state') = codeGeneration (addLabelCount 2 state) expr
@@ -183,22 +188,22 @@ instance CodeGenerator Expr where
                               in (ec ++ [COp $ Op1 "push" (Reg Eax)] ++ ecc,st'')
 
   codeGeneration state (ExprList e1 e2) =
-    let (codes,state') = codeGeneration state e1
-    in let (codes',state'') = codeGeneration state' e2
-       in (codes ++ codes',state'')
-  codeGeneration state expr = ([],state)
+    let (codes, state') = codeGeneration state e1
+    in let (codes', state'') = codeGeneration state' e2
+       in (codes ++ codes', state'')
+  codeGeneration state _ = ([], state)
 
 generateCmp :: CompilationState -> Expr -> Expr -> String -> ([Code],CompilationState)
 generateCmp state e1 e2 s =
   let (codes,state') = generateRSL state e1 e2
   in (codes ++ [COp $ Op2 "cmp" (Reg Eax) (Ref Ebp $ top state'),
                 COp $ Op1 s (Ex "al"),
-                COp $ Op2 "movzx" (Reg Eax) (Ex "al")],releaseLoc state')
+                COp $ Op2 "movzx" (Reg Eax) (Ex "al")], releaseLoc state')
 
 generateRSL :: CompilationState -> Expr -> Expr -> ([Code],CompilationState)
 generateRSL state e1 e2 =
-  let (rcode,state') = codeGeneration state e2
+  let (rcode, state') = codeGeneration state e2
   in let state'' = allocateLoc SInt state'
      in let hcode = [COp $ Op2 "mov" (Ref Ebp $ top state'') (Reg Eax)]
-        in let (lcode,state''') = codeGeneration state'' e1
-           in (rcode ++ hcode ++ lcode,state''')
+        in let (lcode, state''') = codeGeneration state'' e1
+           in (rcode ++ hcode ++ lcode, state''')

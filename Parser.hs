@@ -4,17 +4,16 @@ module Parser(translUnit) where
 import Text.Parsec
 import Text.Parsec.String (Parser)
 import Text.Parsec.Expr
-import Text.Parsec.Char
-import Text.Parsec.Combinator
 import qualified Text.Parsec.Token as P
 import Text.Parsec.Language (javaStyle)
-import Data.Char
 import Control.Monad.Identity
 import Syntax.Types
 import Syntax.AST
 
-
+alpha :: String
 alpha = ['a' .. 'z'] ++ ['A' .. 'Z']
+
+alnum :: String
 alnum = alpha ++ ['0' .. '9']
 
 tinyCStyle = javaStyle
@@ -30,17 +29,31 @@ tinyCStyle = javaStyle
 lexer :: P.TokenParser()
 lexer = P.makeTokenParser tinyCStyle
 
+whiteSpace :: Parser ()
 whiteSpace   = P.whiteSpace lexer
-lexeme       = P.lexeme lexer
+
+symbol :: String -> Parser String
 symbol       = P.symbol lexer
+
+mNatural :: Parser Integer
 mNatural     = P.natural lexer
+
+parens :: Parser a -> Parser a
 parens       = P.parens lexer
+
+semi :: Parser String
 semi         = P.semi lexer
+
+mIdentifier :: Parser String
 mIdentifier  = P.identifier lexer
+
+reserved :: String -> Parser ()
 reserved     = P.reserved lexer
+
+reservedOp :: String -> Parser ()
 reservedOp   = P.reservedOp lexer
 
-
+brace :: Parser a -> Parser a
 brace = between (symbol "(") (symbol ")")
 
 constant :: Parser Constant
@@ -61,23 +74,28 @@ primaryExpr = do (Constant c) <- constant
               <|> brace expression
               <?> "primary expression"
 
+argumentExpList :: Parser [Expr]
 argumentExpList = assignExpr `sepBy` symbol ","
                   <?> "arg_list"
 
+postfixExpr :: Parser Expr
 postfixExpr = try ( do q <- identifier
                        p <- brace argumentExpList
                        return (FunCall q p) )
                <|> primaryExpr
                <?> "postfix expression"
 
+unaryExpr :: Parser Expr
 unaryExpr = postfixExpr
              <|> do char '-'
                     p <- unaryExpr
                     return (UMinus p)
              <?> "unary expression"
 
+logicalOrArithExpr :: Parser Expr
 logicalOrArithExpr = buildExpressionParser table unaryExpr <?> "expression"
 
+table :: [[Operator String () Identity Expr]]
 table = [[op "*"  Mul   AssocLeft , op "/"  Div    AssocLeft]
         ,[op "+"  Plus  AssocLeft , op "-"  Minus  AssocLeft]
         ,[op "<=" Le    AssocLeft , op ">=" Ge     AssocLeft,
@@ -136,7 +154,7 @@ statement = do symbol ";"
 declaration :: Parser Decl
 declaration = do reserved "int"
                  p <- identifier `sepBy` symbol ","
-                 semi
+                 _ <- semi
                  return (Decl Int p)
               <?> "declaration"
 
@@ -158,6 +176,7 @@ functionDefinition = do typ <- typeDecl
                         return (FuncDecl typ name q (Body stmt))
                      <?> "function definition"
 
+typeDecl :: Parser Type
 typeDecl = (reserved "int" >> return Int)
            <|> (reserved "void" >> return Void)
            <?> "typeDecl"

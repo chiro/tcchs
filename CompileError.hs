@@ -1,9 +1,8 @@
 module CompileError where
 
-import Text.Parsec.Error
-import Symbol
+import qualified Text.Parsec.Error as PE
 
-data CompileError = PError ParseError
+data CompileError = PError PE.ParseError
                   | SError [CompileLog]
 instance Show CompileError where
   show (PError pe) = "Parse Error: " ++ show pe
@@ -30,7 +29,7 @@ instance Show SemanticError where
   show (FunCallWithVar s) = s ++ "is not a function"
   show (TypeError s) = "TypeError : " ++ s
   show (ReDeclDiffType s) = "ReDeclDiffTYpe : " ++ s
-  show (InvalidNumOfParam i1 i2) = "different number of parameter"
+  show (InvalidNumOfParam _ _) = "different number of parameter"
 
 data Warning = ParamShadow String
              | CallUndefinedFunc String
@@ -40,4 +39,4 @@ instance Show Warning where
   show (CallUndefinedFunc s) = "call undefined function " ++ s
   show (ParamShadow s)       = "declaration of " ++ s ++" shadows a parameter"
 dupError :: [CompileLog] -> String -> [CompileLog]
-dupError log str = log ++ [Err $ ReDecl str]
+dupError compileLog str = compileLog ++ [Err $ ReDecl str]
