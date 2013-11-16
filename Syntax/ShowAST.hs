@@ -41,11 +41,9 @@ showDecl (Decl Int ids) = "(Declaration type:int " ++ unwords (map f ids) ++ ")"
   where f id = show id ++ " "
 
 showFunc :: FuncDecl -> String
-showFunc (FuncDecl t i p b) = "((" ++ show t ++ " " ++ show i ++ ") "
-                              ++ "(" ++ showParamDecl p ++ ")\n"
-                              ++ "(\n"
-                              ++ showBody b
-                              ++ "))\n"
+showFunc (FuncDecl t i p b) =
+  "((" ++ show t ++ " " ++ show i ++ ") " ++ "(" ++ showParamDecl p ++ ")\n"
+  ++ "(\n" ++ showBody b ++ "))\n"
 
 showParamDecl :: ParamDecl -> String
 showParamDecl (ParamDecl lst) = unwords (map f lst)
@@ -67,6 +65,5 @@ showStmt (While expr th) pre = pre ++ "(WHILE " ++ show expr ++ "\n"
 showStmt (Return Nothing) pre = pre ++ "(RETURN)"
 showStmt (Return (Just expr)) pre = pre ++ "(RETURN " ++ show expr ++ ")"
 showStmt (Declaration decl) pre = pre ++ showDecl decl
-showStmt (Compound lst) pre = pre ++ "(\n"
-                              ++ init (unlines (map (\s -> showStmt s pre) lst)) ++ "\n"
-                              ++ pre ++ ")"
+showStmt (Compound lst) pre =
+  pre ++ "(\n" ++ init (unlines (map (`showStmt` pre) lst)) ++ "\n" ++ pre ++ ")"

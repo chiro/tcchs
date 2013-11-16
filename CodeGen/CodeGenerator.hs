@@ -1,6 +1,6 @@
 module CodeGen.CodeGenerator where
 
-import Data.Map as M
+import qualified Data.Map as M
 import Data.Maybe
 import Syntax.AST
 import Symbol
@@ -10,10 +10,15 @@ import CodeGen.AsmCode
 import CodeGen.CompilationState
 import Debug.Trace
 
-topLevelCodeGeneration :: [CompileLog] -> [(String,SymbolTable)] -> GlobalSymTable -> CTranslUnit -> [Code]
-topLevelCodeGeneration cl slist gtable (CTU plist) = makeExternalFuncCode cl ++ snd (foldl f (emptyState,[]) plist)
+topLevelCodeGeneration :: [CompileLog]
+                          -> [(String,SymbolTable)]
+                          -> GlobalSymTable
+                          -> CTranslUnit
+                          -> [Code]
+topLevelCodeGeneration cl slist gtable (CTU plist) =
+  makeExternalFuncCode cl ++ snd (foldl f (emptyState,[]) plist)
   where f (state,codes) p = let (nc,state') = codeGenerationP state slist gtable p
-                            in (modifyLabel (countLabel state) emptyState,codes ++ nc)
+                            in (modifyLabel (countLabel state) emptyState, codes ++ nc)
 
 makeExternalFuncCode :: [CompileLog] -> [Code]
 makeExternalFuncCode = foldl f []
