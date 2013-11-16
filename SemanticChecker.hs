@@ -49,9 +49,6 @@ makeGlobalVarSym t s =
 
 type SStack = S.Stack (Integer,String,STKey)
 
-emptyStack :: SStack
-emptyStack = S.empty
-
 popCurrentLevel :: Integer -> SStack -> SStack
 popCurrentLevel l [] = []
 popCurrentLevel l s@((lev,_,_):xs)
@@ -68,7 +65,7 @@ instance Show CollectSymbolState where
              ++ show (clog css) ++ "\n"
 
 initState :: CollectSymbolState
-initState = CSS { stack = emptyStack, stable = emptyTable, clog = [], lev = 0}
+initState = CSS { stack = S.empty, stable = emptyTable, clog = [], lev = 0}
 
 append :: [a] -> (CollectSymbolState,a) -> (CollectSymbolState,[a])
 append l (css,a) = (css,l ++ [a])
@@ -84,10 +81,10 @@ addLog css l = CSS { stable = stable css,
                      lev = lev css,
                      clog = clog css ++ [l] }
 
-findSymbolinStack :: String -> SStack -> (Integer,Integer)
-findSymbolinStack s [] = (-1,-1)
-findSymbolinStack s st@((l,x,i):xs) =
-  if s == x then (l,i) else findSymbolinStack s xs
+findSymbolinStack :: String -> SStack -> (Integer, Integer)
+findSymbolinStack s [] = (-1, -1)
+findSymbolinStack s ((l, x, i):xs) =
+  if s == x then (l, i) else findSymbolinStack s xs
 
 ok :: Integer -> String -> CollectSymbolState -> Maybe CompileLog
 ok l s css
@@ -146,7 +143,7 @@ instance CreatingSymTable FuncDecl where
   collectSymbol gtable css (FuncDecl t i param body) =
     let (css',param') = collectSymbol gtable (modifyLevel css 1) param
     in let (css'',body') = collectSymbol gtable (modifyLevel css' 2) body
-       in (CSS { stack = emptyStack, stable = stable css'', clog = clog css'', lev = 0 },
+       in (CSS { stack = S.empty, stable = stable css'', clog = clog css'', lev = 0 },
            FuncDecl t i param' body')
 
 instance CreatingSymTable ParamDecl where
@@ -162,7 +159,7 @@ instance CreatingSymTable ParamDecl where
 instance CreatingSymTable FuncBody where
   collectSymbol gtable css (Body slist) =
     let (css',slist') = foldl' collect (css,[]) slist
-    in (CSS { stack = emptyStack, stable = stable css', clog = clog css', lev = 0}, Body slist')
+    in (CSS { stack = S.empty, stable = stable css', clog = clog css', lev = 0}, Body slist')
       where collect (state,sl) s = let (state',s') = collectSymbol gtable state s
                                    in (state',sl ++ [s'])
 
