@@ -180,34 +180,17 @@ genExpr (L_OR e1 e2) = do
     ++ [OnlyLabel label]
     ++ [COp $ Op2 "mov" (Reg Eax) (Ref Ebp $ top cs)]
 
--- TODO: Consolidate these
-genExpr (Plus l r) = do
-  code <- generateRSL l r
-  cs' <- get
-  modify releaseLoc
-  return $ code ++ [COp $ Op2 "add" (Reg Eax) (Ref Ebp $ top cs')]
-genExpr (Minus l r) = do
-  code <- generateRSL l r
-  cs' <- get
-  modify releaseLoc
-  return $ code ++ [COp $ Op2 "sub" (Reg Eax) (Ref Ebp $ top cs')]
-genExpr (Mul l r) = do
-  code <- generateRSL l r
-  cs' <- get
-  modify releaseLoc
-  return $ code ++ [COp $ Op2 "imul" (Reg Eax) (Ref Ebp $ top cs')]
-genExpr (Div l r) = do
-  code <- generateRSL l r
-  cs' <- get
-  modify releaseLoc
-  return $ code ++ [COp $ Op2 "idiv dword" (Reg Eax) (Ref Ebp $ top cs')]
+genExpr (Plus l r) = genBinOp l r "add"
+genExpr (Minus l r) = genBinOp l r "sub"
+genExpr (Mul l r) = genBinOp l r "imul"
+genExpr (Div l r) = genBinOp l r "idiv dword"
 
-genExpr (Equal e1 e2) = generateCmp e1 e2 "sete"
-genExpr (NEqual e1 e2) = generateCmp e1 e2 "setne"
-genExpr (Gt e1 e2) = generateCmp e1 e2 "setg"
-genExpr (Lt e1 e2) = generateCmp e1 e2 "setl"
-genExpr (Ge e1 e2) = generateCmp e1 e2 "setge"
-genExpr (Le e1 e2) = generateCmp e1 e2 "setle"
+genExpr (Equal e1 e2) = genCmp e1 e2 "sete"
+genExpr (NEqual e1 e2) = genCmp e1 e2 "setne"
+genExpr (Gt e1 e2) = genCmp e1 e2 "setg"
+genExpr (Lt e1 e2) = genCmp e1 e2 "setl"
+genExpr (Ge e1 e2) = genCmp e1 e2 "setge"
+genExpr (Le e1 e2) = genCmp e1 e2 "setle"
 
 genExpr (ExprList e1 e2) = do
   code <- genExpr e1
@@ -234,8 +217,8 @@ generateRSL e1 e2 = do
   lcode <- genExpr e1
   return $ rcode ++ hcode ++ lcode
 
-generateCmp :: Expr -> Expr -> String -> State CompilationState [Code]
-generateCmp e1 e2 s = do
+genCmp :: Expr -> Expr -> String -> State CompilationState [Code]
+genCmp e1 e2 s = do
   code <- generateRSL e1 e2
   cs <- get
   modify releaseLoc
@@ -243,3 +226,10 @@ generateCmp e1 e2 s = do
     ++ [COp $ Op2 "cmp" (Reg Eax) (Ref Ebp $ top cs),
         COp $ Op1 s (Ex "al"),
         COp $ Op2 "movzx" (Reg Eax) (Ex "al")]
+
+genBinOp :: Expr -> Expr -> String -> State CompilationState [Code]
+genBinOp l r op = do
+  code <- generateRSL l r
+  cs' <- get
+  modify releaseLoc
+  return $ code ++ [COp $ Op2 op (Reg Eax) (Ref Ebp $ top cs')]
