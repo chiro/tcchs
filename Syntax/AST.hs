@@ -1,6 +1,6 @@
 module Syntax.AST where
 
-import Syntax.Types
+import qualified Syntax.Types as T
 
 data Identifier = Identifier String
                 | STableKey Integer
@@ -34,7 +34,7 @@ data Expr = Const  Integer
           | FunCall Identifier [Expr]
           deriving (Eq)
 
-data Decl = Decl Syntax.Types.Type [Identifier]
+data Decl = Decl T.Type [Identifier]
 
 data Stmt = EmptyStmt
           | Expression Expr
@@ -44,9 +44,9 @@ data Stmt = EmptyStmt
           | Declaration Decl
           | Compound [Stmt]
 
-data ParamDecl = ParamDecl [(Type, Identifier)]
+data ParamDecl = ParamDecl [(T.Type, Identifier)]
 
-data FuncDecl = FuncDecl Type Identifier ParamDecl FuncBody
+data FuncDecl = FuncDecl T.Type Identifier ParamDecl FuncBody
 
 data FuncBody = Body [Stmt]
 

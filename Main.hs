@@ -45,8 +45,7 @@ semanticCheck ctu =
     _   -> Left $ SError compileLog
 
 containError :: [CompileLog] -> Bool
-containError [] = False
-containError (x:xs) =
-  case x of
-    (Err _) -> True
-    _       -> containError xs
+containError =
+  any (\x -> case x of
+          (Err _) -> True
+          _ -> False)

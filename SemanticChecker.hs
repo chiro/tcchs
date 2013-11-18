@@ -5,9 +5,8 @@ import qualified Data.Map as M
 import Data.Maybe
 
 import CompileError
-import qualified Stack as S
 import Syntax.AST
-import Syntax.Types
+import qualified Syntax.Types as T
 import Symbol
 
 createGlobalSTable :: CTranslUnit -> (GlobalSymTable,[CompileLog])
@@ -31,7 +30,7 @@ collectGlobalSyms stable log (ExDecl decl@(Decl t ilist):xs) =
           sub t l (Identifier x:xs) =
             if M.member x t
             then sub t (dupError l x) xs
-            else sub (M.insert x (makeGlobalVarSym Syntax.Types.Int x) t) l xs
+            else sub (M.insert x (makeGlobalVarSym T.Int x) t) l xs
 
 makeFuncSym :: FuncDecl -> Symbol
 makeFuncSym (FuncDecl tp (Identifier name) (ParamDecl ps) _) =
@@ -42,12 +41,12 @@ makeFuncSym (FuncDecl tp (Identifier name) (ParamDecl ps) _) =
   where mp [] = ([],[])
         mp ((t,Identifier nm):xs) = (convT t : fst (mp xs), nm : snd (mp xs))
 
-makeGlobalVarSym :: Type -> String -> Symbol
+makeGlobalVarSym :: T.Type -> String -> Symbol
 makeGlobalVarSym t s =
   SVar VarObj { vname = s, vadr = 0,
                 level = 0, dataType = convT t }
 
-type SStack = S.Stack (Integer,String,STKey)
+type SStack = [(Integer, String, STKey)]
 
 popCurrentLevel :: Integer -> SStack -> SStack
 popCurrentLevel l [] = []
@@ -65,7 +64,7 @@ instance Show CollectSymbolState where
              ++ show (clog css) ++ "\n"
 
 initState :: CollectSymbolState
-initState = CSS { stack = S.empty, stable = emptyTable, clog = [], lev = 0}
+initState = CSS { stack = [], stable = emptyTable, clog = [], lev = 0}
 
 append :: [a] -> (CollectSymbolState,a) -> (CollectSymbolState,[a])
 append l (css,a) = (css,l ++ [a])
@@ -104,7 +103,7 @@ calcAdr stable st lev
           f  osize (l,n,k) | l == 1 = osize
                            | otherwise = osize - sizeOf (Data.Maybe.fromJust $ M.lookup k stable)
 
-insertSymbol :: Type -> Identifier -> CollectSymbolState -> (CollectSymbolState,Bool)
+insertSymbol :: T.Type -> Identifier -> CollectSymbolState -> (CollectSymbolState,Bool)
 insertSymbol t (Identifier s) css =
   let sym = SVar VarObj { vname = s,
                           dataType = convT t,
@@ -112,12 +111,12 @@ insertSymbol t (Identifier s) css =
                           vadr = calcAdr (stable css) (stack css) (lev css)}
   in let ntable = appendSymbol sym (stable css)
      in case ok (lev css) s css of
-       Nothing -> (CSS { stack = S.push (stack css) (lev css,s,toInteger (M.size ntable) - 1),
+       Nothing -> (CSS { stack = (lev css,s,toInteger (M.size ntable) - 1):(stack css),
                          clog = clog css,
                          lev = lev css,
                          stable = ntable},
                    True)
-       Just x  -> (CSS { stack = S.push (stack css) (lev css,s,toInteger (M.size ntable) - 1),
+       Just x  -> (CSS { stack = (lev css,s,toInteger (M.size ntable) - 1):(stack css),
                          clog = clog css ++ [x],
                          lev = lev css,
                          stable = ntable},
@@ -143,7 +142,7 @@ instance CreatingSymTable FuncDecl where
   collectSymbol gtable css (FuncDecl t i param body) =
     let (css',param') = collectSymbol gtable (modifyLevel css 1) param
     in let (css'',body') = collectSymbol gtable (modifyLevel css' 2) body
-       in (CSS { stack = S.empty, stable = stable css'', clog = clog css'', lev = 0 },
+       in (CSS { stack = [], stable = stable css'', clog = clog css'', lev = 0 },
            FuncDecl t i param' body')
 
 instance CreatingSymTable ParamDecl where
@@ -159,7 +158,7 @@ instance CreatingSymTable ParamDecl where
 instance CreatingSymTable FuncBody where
   collectSymbol gtable css (Body slist) =
     let (css',slist') = foldl' collect (css,[]) slist
-    in (CSS { stack = S.empty, stable = stable css', clog = clog css', lev = 0}, Body slist')
+    in (CSS { stack = [], stable = stable css', clog = clog css', lev = 0}, Body slist')
       where collect (state,sl) s = let (state',s') = collectSymbol gtable state s
                                    in (state',sl ++ [s'])
 
