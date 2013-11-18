@@ -3,6 +3,7 @@ module Main where
 import Debug.Trace
 import qualified Text.Parsec.Prim as TPP
 import System.Environment (getArgs)
+import System.FilePath (dropExtension)
 
 import Syntax.AST (CTranslUnit)
 import Symbol
@@ -11,8 +12,6 @@ import SemanticChecker (createGlobalSTable, createSymbolTable)
 import CompileError
 import CodeGen.CodeGenerator (topLevelCodeGeneration)
 import CodeGen.AsmCode (Code)
-import Utils
-
 
 main :: IO ()
 main = do
@@ -22,7 +21,7 @@ main = do
   case code of
     Left err -> print err
     Right codes ->
-      writeFile (fileNameWithoutExtension (head args) ++ ".asm") $ concatMap show codes
+      writeFile (dropExtension (head args) ++ ".asm") $ concatMap show codes
 
 compile :: ([CompileLog],GlobalSymTable,[(String,SymbolTable)],CTranslUnit)
            -> Either CompileError [Code]

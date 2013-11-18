@@ -11,5 +11,6 @@ executable tcchs
                   , parsec
                   , containers
                   , mtl
+                  , filepath
 
     ghc-options:  -Wall
