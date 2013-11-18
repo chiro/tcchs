@@ -23,7 +23,7 @@ topLevelCodeGeneration cl slist gtable (CTU plist) =
 
 makeExternalFuncCode :: [CompileLog] -> [Code]
 makeExternalFuncCode = foldl f []
-  where f codes (Warn (CallUndefinedFunc s)) = codes ++ [COp (Op1 "EXTERN" (Ex s))]
+  where f codes (Warn (CallUndefinedFunc s)) = codes ++ [emitOp1 "EXTERN" (Ex s)]
         f codes _                            = codes
 
 genProgram :: CompilationState
@@ -33,7 +33,7 @@ genProgram :: CompilationState
                    -> ([Code],CompilationState)
 genProgram cs _ gtable (ExDecl decl) = (Prelude.map f (ci decl), cs)
     where f s = let sym = fromJust $ M.lookup s gtable
-                in COp (Op0 ("COMMON " ++ s ++ " " ++ show (sizeOf sym)))
+                in emitOp0  ("COMMON " ++ s ++ " " ++ show (sizeOf sym))
           ci (Decl _ ids) = Prelude.map (takeName (table cs)) ids
 genProgram cs sl _ (Func fdecl@(FuncDecl _ (Identifier s) _ _)) =
   runState (genFunc fdecl) (modifyTable (lookupS s sl) cs)
@@ -52,16 +52,16 @@ genFunc' name body = do
   code <- genFuncBody body
   cs' <- get
   return $
-    [COp $ Op1 "GLOBAL" (Ex name),
+    [emitOp1 "GLOBAL" (Ex name),
      OnlyLabel name,
-     COp $ Op1 "push" (Reg Ebp),
-     COp $ Op2 "mov" (Reg Ebp) (Reg Esp),
-     COp $ Op2 "sub" (Reg Esp) (AC.Const (maxAlloc cs'))]
+     emitOp1 "push" (Reg Ebp),
+     mov (Reg Ebp) (Reg Esp),
+     emitOp2 "sub" (Reg Esp) (AC.Const (maxAlloc cs'))]
     ++ code
     ++ [OnlyLabel (name ++ "ret"),
-        COp $ Op2 "mov" (Reg Esp) (Reg Ebp),
-        COp $ Op1 "pop" (Reg Ebp),
-        COp $ Op0 "ret", EmptyCode]
+        mov (Reg Esp) (Reg Ebp),
+        emitOp1 "pop" (Reg Ebp),
+        emitOp0 "ret", EmptyCode]
 
 genFuncBody :: FuncBody -> State CompilationState [Code]
 genFuncBody (Body stmts) = foldM f [] stmts
@@ -75,11 +75,11 @@ genStmt (Expression expr) = genExpr expr
 
 genStmt (Return Nothing) = do
   cs <- get
-  return $ [COp $ Op1 "jmp" (Label (functionName cs ++ "ret"))]
+  return $ [jmp (Label (functionName cs ++ "ret"))]
 genStmt (Return (Just expr)) = do
   cs <- get
   code <- genExpr expr
-  return $ code ++ [COp $ Op1 "jmp" (Label (functionName cs ++ "ret"))]
+  return $ code ++ [jmp (Label (functionName cs ++ "ret"))]
 
 genStmt (Declaration (Decl _ il)) = do
   cs <- get
@@ -102,10 +102,10 @@ genStmt (While e s) = do
   modify (addLabelCount 2)
   return $ [OnlyLabel (genLabel cs 0)]
     ++ c
-    ++ [COp $ Op2 "cmp" (Reg Eax) (AC.Const 0),
-        COp $ Op1 "je" (Label (genLabel cs 1))]
+    ++ [cmp (Reg Eax) (AC.Const 0),
+        je (Label (genLabel cs 1))]
     ++ c1
-    ++ [COp $ Op1 "jmp" (Label (genLabel cs 0)),
+    ++ [jmp (Label (genLabel cs 0)),
         OnlyLabel (genLabel cs 1)]
 
 genStmt (If expr s1 s2) = do
@@ -114,34 +114,35 @@ genStmt (If expr s1 s2) = do
   c <- genExpr expr
   c1 <- genStmt s1
   c2 <- genStmt s2
-  return $ c ++ [emitOp2 "cmp" (Reg Eax) (AC.Const 0)]
-    ++ [emitOp1 "je" (Label (genLabel cs 0))]
+  return $ c
+    ++ [cmp (Reg Eax) (AC.Const 0),
+        je (Label (genLabel cs 0))]
     ++ c1
-    ++ [emitOp1 "jmp" (Label (genLabel cs 1)),
+    ++ [jmp (Label (genLabel cs 1)),
         OnlyLabel (genLabel cs 0)]
     ++ c2
     ++ [OnlyLabel (genLabel cs 1)]
 
 genExpr :: Expr -> State CompilationState [Code]
 genExpr (AS.Const i) = do
-  return [COp $ Op2 "mov" (Reg Eax) (AC.Const i)]
+  return [mov (Reg Eax) (AC.Const i)]
 genExpr (Ident (Identifier s)) = do
-  return [COp $ Op2 "mov" (Reg Eax) (GlobalRef s)]
+  return [mov (Reg Eax) (GlobalRef s)]
 genExpr (Ident (STableKey i)) = do
   cs <- get
   let (SVar sym) = fromJust $ M.lookup i (table cs)
-  return [COp $ Op2 "mov" (Reg Eax) (Ref Ebp (vadr sym))]
+  return [mov (Reg Eax) (Ref Ebp (vadr sym))]
 genExpr (Assign (Identifier s) expr) = do
   rcode <- genExpr expr
-  return (rcode ++ [COp $ Op2 "mov" (GlobalRef s) (Reg Eax)])
+  return (rcode ++ [mov (GlobalRef s) (Reg Eax)])
 genExpr (Assign (STableKey i) expr) = do
   cs <- get
   let (SVar sym) = fromJust $ M.lookup i (table cs)
   rcode <- genExpr expr
-  return (rcode ++ [COp $ Op2 "mov" (Ref Ebp (vadr sym)) (Reg Eax)])
+  return (rcode ++ [mov (Ref Ebp (vadr sym)) (Reg Eax)])
 genExpr (UMinus expr) = do
   code <- genExpr expr
-  return $ code ++ [COp $ Op1 "neg" (Reg Eax)]
+  return $ code ++ [emitOp1 "neg" (Reg Eax)]
 
 -- TODO: Consolidate with the L_OR case.
 genExpr (L_AND e1 e2) = do
@@ -151,16 +152,16 @@ genExpr (L_AND e1 e2) = do
   modify (addLabelCount 1)
   c1 <- genExpr e1
   c2 <- genExpr e2
-  return $ [COp $ Op2 "mov dword" (Ref Ebp $ top cs) (AC.Const 0)]
+  return $ [emitOp2 "mov dword" (Ref Ebp $ top cs) (AC.Const 0)]
     ++ c1
-    ++ [COp $ Op2 "cmp" (Reg Eax) (AC.Const 0),
-        COp $ Op1 "je" (Label label)]
+    ++ [cmp (Reg Eax) (AC.Const 0),
+        je (Label label)]
     ++ c2
-    ++ [COp $ Op2 "cmp" (Reg Eax) (AC.Const 0),
-        COp $ Op1 "je" (Label label),
-        COp $ Op2 "mov dword" (Ref Ebp $ top cs) (AC.Const 1),
+    ++ [cmp (Reg Eax) (AC.Const 0),
+        je (Label label),
+        emitOp2 "mov dword" (Ref Ebp $ top cs) (AC.Const 1),
         OnlyLabel label,
-        COp $ Op2 "mov" (Reg Eax) (Ref Ebp $ top cs)]
+        mov (Reg Eax) (Ref Ebp $ top cs)]
 
 genExpr (L_OR e1 e2) = do
   cs <- get
@@ -169,16 +170,16 @@ genExpr (L_OR e1 e2) = do
   modify (addLabelCount 1)
   c1 <- genExpr e1
   c2 <- genExpr e2
-  return $ [COp $ Op2 "mov dword" (Ref Ebp $ top cs) (AC.Const 1)]
+  return $ [emitOp2 "mov dword" (Ref Ebp $ top cs) (AC.Const 1)]
     ++ c1
-    ++ [COp $ Op2 "cmp" (Reg Eax) (AC.Const 0)]
-    ++ [COp $ Op1 "jne" (Label label)]
+    ++ [cmp (Reg Eax) (AC.Const 0)]
+    ++ [jne (Label label)]
     ++ c2
-    ++ [COp $ Op2 "cmp" (Reg Eax) (AC.Const 0)]
-    ++ [COp $ Op1 "jne" (Label label)]
-    ++ [COp $ Op2 "mov dword" (Ref Ebp $ top cs) (AC.Const 0)]
+    ++ [cmp (Reg Eax) (AC.Const 0)]
+    ++ [jne (Label label)]
+    ++ [emitOp2 "mov dword" (Ref Ebp $ top cs) (AC.Const 0)]
     ++ [OnlyLabel label]
-    ++ [COp $ Op2 "mov" (Reg Eax) (Ref Ebp $ top cs)]
+    ++ [mov (Reg Eax) (Ref Ebp $ top cs)]
 
 genExpr (Plus l r) = genBinOp l r "add"
 genExpr (Minus l r) = genBinOp l r "sub"
@@ -200,20 +201,20 @@ genExpr (ExprList e1 e2) = do
 genExpr (FunCall (Identifier s) elist) = do
   code <- f (reverse elist)
   return $ code
-    ++ [COp $ Op1 "call" (Ex s),
-        COp $ Op2 "add" (Reg Esp) (AC.Const (4 * toInteger (length elist)))]
+    ++ [emitOp1 "call" (Ex s),
+        emitOp2 "add" (Reg Esp) (AC.Const (4 * toInteger (length elist)))]
   where f [] = return []
         f (expr:xs) = do
           ec <- genExpr expr
           ecc <- f xs
-          return $ ec ++ [COp $ Op1 "push" (Reg Eax)] ++ ecc
+          return $ ec ++ [emitOp1 "push" (Reg Eax)] ++ ecc
 
 generateRSL :: Expr -> Expr -> State CompilationState [Code]
 generateRSL e1 e2 = do
   rcode <- genExpr e2
   modify (allocateLoc SInt)
   cs' <- get
-  let hcode = [COp $ Op2 "mov" (Ref Ebp $ top cs') (Reg Eax)]
+  let hcode = [emitOp2 "mov" (Ref Ebp $ top cs') (Reg Eax)]
   lcode <- genExpr e1
   return $ rcode ++ hcode ++ lcode
 
@@ -223,13 +224,13 @@ genCmp e1 e2 s = do
   cs <- get
   modify releaseLoc
   return $ code
-    ++ [COp $ Op2 "cmp" (Reg Eax) (Ref Ebp $ top cs),
-        COp $ Op1 s (Ex "al"),
-        COp $ Op2 "movzx" (Reg Eax) (Ex "al")]
+    ++ [cmp (Reg Eax) (Ref Ebp $ top cs),
+        emitOp1 s (Ex "al"),
+        emitOp2 "movzx" (Reg Eax) (Ex "al")]
 
 genBinOp :: Expr -> Expr -> String -> State CompilationState [Code]
 genBinOp l r op = do
   code <- generateRSL l r
   cs' <- get
   modify releaseLoc
-  return $ code ++ [COp $ Op2 op (Reg Eax) (Ref Ebp $ top cs')]
+  return $ code ++ [emitOp2 op (Reg Eax) (Ref Ebp $ top cs')]
