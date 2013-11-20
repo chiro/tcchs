@@ -2,15 +2,38 @@ name: tcchs
 version: 0.1
 author: Yuichiro Hanada
 synopsis: Toy compiler for Tiny C.
-cabal-version: >= 1.6
+cabal-version: >= 1.10
 build-type: Simple
 
-executable tcchs
-    main-is:    Main.hs
-    build-depends:  base    >= 4 && < 5
+Library
+    Hs-source-dirs: src
+    Default-Language: Haskell2010
+    Build-depends:  base >= 4 && < 5
                   , parsec
                   , containers
                   , mtl
                   , filepath
 
+    Exposed-modules: Symbol
+                     Parser
+                     SemanticChecker
+                     CompileError
+                     CodeGen.AsmCode
+                     CodeGen.CodeGenerator
+                     CodeGen.CompilationState
+                     Syntax.AST
+                     Syntax.Types
+
+    ghc-options: -Wall
+
+executable tcchs
+    Hs-source-dirs: src-exec
+    main-is:    Main.hs
+    Default-Language: Haskell2010
+    build-depends:  base    >= 4 && < 5
+                  , filepath
+                  , parsec
+                  , tcchs
+
     ghc-options:  -Wall
+
