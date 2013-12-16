@@ -1,6 +1,5 @@
 module CodeGen.CodeGenerator where
 
-import Control.Monad (foldM)
 import Control.Monad.State
 import qualified Data.Map as M
 import Data.Maybe
@@ -38,7 +37,7 @@ genProgram cs _ gtable (ExDecl decl) = (Prelude.map f (ci decl), cs)
 genProgram cs sl _ (Func fdecl@(FuncDecl _ (Identifier s) _ _)) =
   runState (genFunc fdecl) (modifyTable (lookupS s sl) cs)
   where lookupS _ [] = error "no"
-        lookupS s ((str,table):xs) = if s == str then table else lookupS s xs
+        lookupS s' ((str, table'):xs) = if s' == str then table' else lookupS s' xs
 
 genFunc :: FuncDecl -> State CompilationState [Code]
 genFunc (FuncDecl _ (Identifier s) _ body) = do

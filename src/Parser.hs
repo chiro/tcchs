@@ -16,6 +16,7 @@ alpha = ['a' .. 'z'] ++ ['A' .. 'Z']
 alnum :: String
 alnum = alpha ++ ['0' .. '9']
 
+tinyCStyle :: P.GenLanguageDef String a Identity
 tinyCStyle = javaStyle
              { P.nestedComments = False
              , P.reservedNames = ["if", "else", "while", "int",
@@ -30,22 +31,19 @@ lexer :: P.TokenParser()
 lexer = P.makeTokenParser tinyCStyle
 
 whiteSpace :: Parser ()
-whiteSpace   = P.whiteSpace lexer
+whiteSpace = P.whiteSpace lexer
 
 symbol :: String -> Parser String
-symbol       = P.symbol lexer
+symbol = P.symbol lexer
 
 mNatural :: Parser Integer
-mNatural     = P.natural lexer
-
-parens :: Parser a -> Parser a
-parens       = P.parens lexer
+mNatural = P.natural lexer
 
 semi :: Parser String
-semi         = P.semi lexer
+semi = P.semi lexer
 
 mIdentifier :: Parser String
-mIdentifier  = P.identifier lexer
+mIdentifier = P.identifier lexer
 
 reserved :: String -> Parser ()
 reserved     = P.reserved lexer
@@ -87,7 +85,7 @@ postfixExpr = try ( do q <- identifier
 
 unaryExpr :: Parser Expr
 unaryExpr = postfixExpr
-             <|> do char '-'
+             <|> do _ <- char '-'
                     p <- unaryExpr
                     return (UMinus p)
              <?> "unary expression"
@@ -108,7 +106,7 @@ table = [[op "*"  Mul   AssocLeft , op "/"  Div    AssocLeft]
 
 assignExpr :: Parser Expr
 assignExpr = try (do p <- identifier
-                     symbol "="
+                     _ <- symbol "="
                      q <- assignExpr
                      return (Assign p q))
               <|> logicalOrArithExpr
@@ -119,17 +117,17 @@ expression = do q <- assignExpr `sepBy1` symbol ","
                 return (f q)
   where f (x:[]) = x
         f (x:xs) = ExprList x (f xs)
+        f [] = error "Bug!"
 
 statement :: Parser Stmt
-statement = do symbol ";"
-               return EmptyStmt
+statement = do symbol ";" >> return EmptyStmt
             <|> do reserved "while"
-                   pred <- brace expression
+                   predicate <- brace expression
                    st <- statement
-                   return (While pred st)
+                   return (While predicate st)
             <|> do reserved "return"
                    p <- optionMaybe expression
-                   semi
+                   _ <- semi
                    return (Return p)
             <|> do { reserved "if";
                     q  <- between (symbol "(") (symbol ")") expression;
@@ -140,14 +138,13 @@ statement = do symbol ";"
                          }
                     <|> return (If q th EmptyStmt);
                     }
-            <|> do p <- declaration
-                   return (Declaration p)
+            <|> do declaration >>= return . Declaration
             <|> do p <- expression
-                   semi
+                   _ <- semi
                    return (Expression p)
-            <|> do symbol "{"
+            <|> do _ <- symbol "{"
                    p <- many statement
-                   symbol "}"
+                   _ <- symbol "}"
                    return (Compound p)
             <?> "statement"
 
