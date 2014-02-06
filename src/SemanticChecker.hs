@@ -111,12 +111,12 @@ insertSymbol t (Identifier s) css =
                           vadr = calcAdr (stable css) (stack css) (lev css)}
   in let ntable = appendSymbol sym (stable css)
      in case ok (lev css) s css of
-       Nothing -> (CSS { stack = (lev css,s,toInteger (M.size ntable) - 1):(stack css),
+       Nothing -> (CSS { stack = (lev css,s,toInteger (M.size ntable) - 1):stack css,
                          clog = clog css,
                          lev = lev css,
                          stable = ntable},
                    True)
-       Just x  -> (CSS { stack = (lev css,s,toInteger (M.size ntable) - 1):(stack css),
+       Just x  -> (CSS { stack = (lev css,s,toInteger (M.size ntable) - 1):stack css,
                          clog = clog css ++ [x],
                          lev = lev css,
                          stable = ntable},

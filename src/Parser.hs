@@ -1,12 +1,15 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Parser(translUnit) where
 
+import Control.Monad.Identity
+import Control.Monad (liftM)
+
 import Text.Parsec
 import Text.Parsec.String (Parser)
 import Text.Parsec.Expr
 import qualified Text.Parsec.Token as P
 import Text.Parsec.Language (javaStyle)
-import Control.Monad.Identity
+
 import Syntax.Types
 import Syntax.AST
 
@@ -120,7 +123,7 @@ expression = do q <- assignExpr `sepBy1` symbol ","
         f [] = error "Bug!"
 
 statement :: Parser Stmt
-statement = do symbol ";" >> return EmptyStmt
+statement = (symbol ";" >> return EmptyStmt)
             <|> do reserved "while"
                    predicate <- brace expression
                    st <- statement
@@ -138,7 +141,7 @@ statement = do symbol ";" >> return EmptyStmt
                          }
                     <|> return (If q th EmptyStmt);
                     }
-            <|> do declaration >>= return . Declaration
+            <|> liftM Declaration declaration
             <|> do p <- expression
                    _ <- semi
                    return (Expression p)
