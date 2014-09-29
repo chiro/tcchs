@@ -24,19 +24,19 @@ emitOp2 :: String -> Location -> Location -> Code
 emitOp2 name loc1 loc2 = COp $ Op2 name loc1 loc2
 
 mov :: Location -> Location -> Code
-mov loc1 loc2 = emitOp2 "mov" loc1 loc2
+mov = emitOp2 "mov"
 
 cmp :: Location -> Location -> Code
-cmp loc1 loc2 = emitOp2 "cmp" loc1 loc2
+cmp = emitOp2 "cmp"
 
 jmp :: Location -> Code
-jmp loc = emitOp1 "jmp" loc
+jmp = emitOp1 "jmp"
 
 je :: Location -> Code
-je loc = emitOp1 "je" loc
+je = emitOp1 "je"
 
 jne :: Location -> Code
-jne loc = emitOp1 "jne" loc
+jne = emitOp1 "jne"
 
 instance Show Code where
   show (COp op) = show op

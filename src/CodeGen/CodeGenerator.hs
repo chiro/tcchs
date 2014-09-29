@@ -74,7 +74,7 @@ genStmt (Expression expr) = genExpr expr
 
 genStmt (Return Nothing) = do
   cs <- get
-  return $ [jmp (Label (functionName cs ++ "ret"))]
+  return [jmp (Label (functionName cs ++ "ret"))]
 genStmt (Return (Just expr)) = do
   cs <- get
   code <- genExpr expr
@@ -84,7 +84,7 @@ genStmt (Declaration (Decl _ il)) = do
   cs <- get
   put (modifyLoc cs (negate (minL cs il)))
   return []
-  where minL cs = foldl (\i k -> f cs i k) 0
+  where minL cs = foldl (f cs) 0
         f cs i (STableKey k) = let (SVar sym) = fromJust $ M.lookup k (table cs)
                                in min i (vadr sym)
         f _ i _ = i
@@ -123,10 +123,8 @@ genStmt (If expr s1 s2) = do
     ++ [OnlyLabel (genLabel cs 1)]
 
 genExpr :: Expr -> State CompilationState [Code]
-genExpr (AS.Const i) = do
-  return [mov (Reg Eax) (AC.Const i)]
-genExpr (Ident (Identifier s)) = do
-  return [mov (Reg Eax) (GlobalRef s)]
+genExpr (AS.Const i) = return [mov (Reg Eax) (AC.Const i)]
+genExpr (Ident (Identifier s)) = return [mov (Reg Eax) (GlobalRef s)]
 genExpr (Ident (STableKey i)) = do
   cs <- get
   let (SVar sym) = fromJust $ M.lookup i (table cs)
@@ -153,14 +151,14 @@ genExpr (L_AND e1 e2) = do
   c2 <- genExpr e2
   return $ [emitOp2 "mov dword" (Ref Ebp $ top cs) (AC.Const 0)]
     ++ c1
-    ++ [cmp (Reg Eax) (AC.Const 0),
-        je (Label label)]
+    ++ [cmp (Reg Eax) (AC.Const 0)]
+    ++ [je (Label label)]
     ++ c2
-    ++ [cmp (Reg Eax) (AC.Const 0),
-        je (Label label),
-        emitOp2 "mov dword" (Ref Ebp $ top cs) (AC.Const 1),
-        OnlyLabel label,
-        mov (Reg Eax) (Ref Ebp $ top cs)]
+    ++ [cmp (Reg Eax) (AC.Const 0)]
+    ++ [je (Label label)]
+    ++ [emitOp2 "mov dword" (Ref Ebp $ top cs) (AC.Const 1)]
+    ++ [OnlyLabel label]
+    ++ [mov (Reg Eax) (Ref Ebp $ top cs)]
 
 genExpr (L_OR e1 e2) = do
   cs <- get

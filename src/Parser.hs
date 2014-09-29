@@ -2,7 +2,6 @@
 module Parser(translUnit) where
 
 import Control.Monad.Identity
-import Control.Monad (liftM)
 
 import Text.Parsec
 import Text.Parsec.String (Parser)
